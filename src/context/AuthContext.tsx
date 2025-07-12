@@ -1,8 +1,16 @@
+"use client";
 // AuthContext for Firebase authentication and route protection
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { onAuthStateChanged, User, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth, db } from "../firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
+
+export interface User {
+  uid: string;
+  email: string | null; // Updated to match Firebase's 'User' type
+  displayName?: string | null; // Updated to match Firebase's 'User' type
+  role?: string;
+}
 
 interface FirestoreUser {
   uid: string;

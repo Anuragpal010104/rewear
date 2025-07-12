@@ -1,3 +1,6 @@
+"use client";
+
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { db } from "../firebaseConfig";
@@ -35,7 +38,7 @@ export default function ItemListPage() {
             <Link key={item.id} href={`/items/${item.id}`}>
               <div className="bg-white p-4 rounded shadow cursor-pointer hover:shadow-lg">
                 <div className="h-40 bg-gray-200 mb-2 rounded flex items-center justify-center">
-                  {item.images && item.images[0] ? <img src={item.images[0]} alt={item.title} className="h-full w-auto object-cover rounded" /> : "No Image"}
+                  {item.images && item.images[0] ? <Image src={item.images[0]} alt={item.title} width={160} height={160} style={{ objectFit: "cover", borderRadius: "0.5rem" }} /> : "No Image"}
                 </div>
                 <div className="font-bold">{item.title}</div>
                 <div>Size: {item.size}</div>
