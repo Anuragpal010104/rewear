@@ -25,6 +25,7 @@ export interface Item {
   uploader: string;
   status: string; // 'pending approval', 'approved', or 'rejected'
   points: number;
+  pointsRequired: number;
   createdAt: string;
 }
 
@@ -121,15 +122,53 @@ export const approveItem = async (itemId: string): Promise<void> => {
   }
 };
 
-// Remove an item
-export const removeItem = async (itemId: string): Promise<void> => {
+// Reject an item
+export const rejectItem = async (itemId: string): Promise<void> => {
   try {
     const itemRef = doc(db, "items", itemId);
-    await deleteDoc(itemRef);
+    await updateDoc(itemRef, { status: "rejected" });
   } catch (error) {
-    console.error("Error removing item:", error);
-    throw new Error(`Failed to remove item: ${error instanceof Error ? error.message : "Unknown error"}`);
+    console.error("Error rejecting item:", error);
+    throw new Error(`Failed to reject item: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
+};
+
+// Unapprove an item (set back to pending approval)
+export const unapproveItem = async (itemId: string): Promise<void> => {
+  try {
+    const itemRef = doc(db, "items", itemId);
+    await updateDoc(itemRef, { status: "pending approval" });
+  } catch (error) {
+    console.error("Error unapproving item:", error);
+    throw new Error(`Failed to unapprove item: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
+};
+
+// Get items by status
+export const getItemsByStatus = async (status: string): Promise<Item[]> => {
+  try {
+    const q = query(collection(db, "items"), where("status", "==", status));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Item[];
+  } catch (error) {
+    console.error("Error fetching items by status:", error);
+    throw new Error(`Failed to fetch items: ${error instanceof Error ? error.message : "Unknown error"}`);
+  }
+};
+
+// Get approved items only
+export const getApprovedItems = async (): Promise<Item[]> => {
+  return getItemsByStatus("approved");
+};
+
+// Get pending approval items
+export const getPendingItems = async (): Promise<Item[]> => {
+  return getItemsByStatus("pending approval");
+};
+
+// Get rejected items
+export const getRejectedItems = async (): Promise<Item[]> => {
+  return getItemsByStatus("rejected");
 };
 
 // Add a new swap

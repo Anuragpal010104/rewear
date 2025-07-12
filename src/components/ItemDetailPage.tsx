@@ -27,12 +27,25 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
 
   useEffect(() => {
     const fetchItem = async () => {
-      const docRef = doc(db, "items", itemId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setItem({ id: docSnap.id, ...docSnap.data() } as ItemDetail);
-      } else {
-        console.error("Item not found");
+      try {
+        const docRef = doc(db, "items", itemId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const itemData = { id: docSnap.id, ...docSnap.data() } as ItemDetail;
+          
+          // Only show approved items to regular users
+          // Admins can see all items (this check would need to be added based on user role)
+          if (itemData.status === "approved") {
+            setItem(itemData);
+          } else {
+            setError("This item is not available or is pending approval.");
+          }
+        } else {
+          setError("Item not found.");
+        }
+      } catch (err) {
+        console.error("Error fetching item:", err);
+        setError("Failed to load item.");
       }
     };
 
@@ -62,8 +75,22 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
     }
   };
 
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto mt-10 p-6 bg-gray-50 min-h-screen">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   if (!item) {
-    return <div>Loading...</div>;
+    return (
+      <div className="max-w-4xl mx-auto mt-10 p-6 bg-gray-50 min-h-screen">
+        <div>Loading...</div>
+      </div>
+    );
   }
 
   return (
@@ -72,9 +99,30 @@ export default function ItemDetailPage({ itemId }: { itemId: string }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           <div className="grid grid-cols-1 gap-4">
-            {item.images.map((image, index) => (
-              <Image key={index} src={image} alt={item.title} width={500} height={500} className="rounded shadow" />
-            ))}
+            {item.images && item.images.length > 0 ? (
+              item.images.map((image, index) => (
+                <Image 
+                  key={index} 
+                  src={image} 
+                  alt={`${item.title} - Image ${index + 1}`} 
+                  width={500} 
+                  height={500} 
+                  className="rounded shadow w-full h-auto object-cover"
+                  unoptimized
+                  onError={(e) => {
+                    console.error("Image failed to load:", image);
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              ))
+            ) : (
+              <div className="bg-gray-200 rounded shadow h-64 flex items-center justify-center">
+                <div className="text-gray-500 text-center">
+                  <div className="text-4xl">📷</div>
+                  <div>No Images Available</div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         <div>

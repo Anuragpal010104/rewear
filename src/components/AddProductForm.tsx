@@ -5,7 +5,6 @@ import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
 import { db } from "../firebaseConfig";
 import { collection, addDoc } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export default function AddProductForm() {
   const { user } = useAuth() ?? {};
@@ -22,7 +21,17 @@ export default function AddProductForm() {
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<FileList | null>(null);
 
-  // Updated item submission to mark items as 'pending approval'
+  // Helper function to convert file to base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  // Updated item submission to store images as base64 in Firestore
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -31,17 +40,30 @@ export default function AddProductForm() {
       return;
     }
     setLoading(true);
-    const imageUrls: string[] = [];
+    
     try {
+      let imageUrls: string[] = [];
+      
+      // Convert images to base64 if any
       if (images) {
-        for (const file of images) {
-          const storageRef = ref(getStorage(), `items/${user.uid}/${file.name}`);
-          const uploadTask = await uploadBytes(storageRef, file);
-          const downloadURL = await getDownloadURL(uploadTask.ref);
-          imageUrls.push(downloadURL);
-          console.log("Uploaded file:", file.name, "URL:", downloadURL);
-        }
+        console.log("Converting", images.length, "images to base64...");
+        const base64Promises = Array.from(images).map(async (file) => {
+          console.log("Converting file:", file.name, "size:", file.size);
+          
+          // Check file size (limit to 1MB per image for Firestore)
+          if (file.size > 1024 * 1024) {
+            throw new Error(`Image ${file.name} is too large. Please use images smaller than 1MB.`);
+          }
+          
+          const base64String = await fileToBase64(file);
+          console.log("Conversion successful for:", file.name);
+          return base64String;
+        });
+        
+        imageUrls = await Promise.all(base64Promises);
+        console.log("All images converted successfully, total:", imageUrls.length);
       }
+
       const itemData = {
         title,
         description,
@@ -51,16 +73,22 @@ export default function AddProductForm() {
         condition,
         tags: tags.split(",").map(tag => tag.trim()),
         pointsRequired,
-        images: imageUrls,
+        images: imageUrls, // Store base64 strings instead of URLs
         uploader: user.uid,
-        status: "pending approval",
+        status: "pending approval", // Always set to pending approval for admin review
         createdAt: new Date().toISOString(),
       };
+      
+      console.log("Saving item data with", imageUrls.length, "images");
       await addDoc(collection(db, "items"), itemData);
+      console.log("Item added successfully");
+      
+      // Show success message and redirect
+      alert("Product submitted successfully! It will be reviewed by an admin before appearing in the marketplace.");
       router.push("/items");
     } catch (err) {
       console.error("Error adding item:", err);
-      setError("Failed to add item. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to add item. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -156,7 +184,11 @@ export default function AddProductForm() {
             onChange={e => setImages(e.target.files)}
             className="w-full p-2 border rounded text-gray-900"
             multiple
+            accept="image/*"
           />
+          <p className="text-sm text-gray-500 mt-1">
+            Select multiple images (max 1MB each). Supported formats: JPG, PNG, WebP
+          </p>
         </div>
         <button
           type="submit"

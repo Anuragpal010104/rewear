@@ -21,6 +21,7 @@ export default function Navbar() {
         ) : (
           <>
             <Link href="/dashboard" className="text-gray-700 font-medium hover:text-blue-700">Dashboard</Link>
+            <Link href="/items/add" className="text-gray-700 font-medium hover:text-blue-700">Add Product</Link>
             <button onClick={logout} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded shadow">Logout</button>
             {userData?.role === "admin" && <Link href="/admin" className="text-gray-700 font-medium hover:text-blue-700">Admin</Link>}
           </>
